@@ -1,0 +1,24 @@
+{
+    "sensors": [
+        {
+            "name": "Temperiert 1",
+            "unit": "temperature",
+            "metric": "temperiert_1"
+        },
+        {
+            "name": "Temperiert 2",
+            "unit": "temperature",
+            "metric": "temperiert_2"
+        },
+        {
+            "name": "Kalt 1",
+            "unit": "temperature",
+            "metric": "kalt_1"
+        },
+        {
+            "name": "Außen",
+            "unit": "temperature",
+            "metric": "aussen_1"
+        }
+    ]
+}
