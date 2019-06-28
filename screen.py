@@ -1,5 +1,6 @@
 import epd2in7
 from PIL import Image,ImageDraw,ImageFont
+from datetime import datetime
 
 class Screen(object):
     def __init__(self, sensors):
@@ -50,6 +51,14 @@ class Screen(object):
         self.button("\u2192", 2)
         self.button("\u2699", 3)
 
+    def renderTimestamp(self):
+        now = datetime.today()
+        timestamp = "{}.{}.{} {}:{}".format(now.day, now.month, now.year, now.hour, now.minute)
+        textWidth, textHeight = self.draw.textsize(timestamp, self.fonts['description'])
+        xOffset = (self.width - textWidth) / 2
+        yPos = self.height - self.statusBarHeight - textHeight - 3
+        self.draw.text((xOffset, yPos), timestamp, font = self.fonts['description'], fill = 0)
+
     def render(self):
         self.image = Image.new('1', (self.width, self.height), 255)
         self.draw = ImageDraw.Draw(self.image)
@@ -58,6 +67,8 @@ class Screen(object):
             self.measurement(measurement.measurementValue(), measurement.name, i)
 
         self.renderToolbar()
+
+        self.renderTimestamp()
 
         return self.image
 
@@ -84,4 +95,8 @@ class Screen(object):
     def update(self):
         img = self.render()
         self.epd.display(self.encodeBuffer(self.render()))
+        #self.epd.sleep()
+
+    def shutdown(self):
+        print("Shutting down")
         self.epd.sleep()
