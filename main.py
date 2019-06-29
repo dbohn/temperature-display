@@ -4,40 +4,43 @@
 from screen import Screen
 from sensors import SensorCollection
 from gpiozero import Button
-from signal import pause
 import json
-from threading import Timer
+from time import sleep
 
 from influxdb import InfluxDBClient
 
-with open("config.json", encoding="utf-8") as configFile:
-    config = json.load(configFile)
+class App(object):
+    def __init__(self):
+        config = self.load_config("config.json")
+        self.client = InfluxDBClient(config['influxdb']['host'], config['influxdb']['port'], config['influxdb']['user'], config['influxdb']['password'], config['influxdb']['database'], ssl = config['influxdb']['ssl'], verify_ssl = config['influxdb']['verify_ssl'])
+        self.sensors = SensorCollection("sensors.json", client)
+        self.screen = Screen(sensors.sensors)
+        self.buttons = {}
+        self.register_button(5, self.update)
 
-client = InfluxDBClient(config['influxdb']['host'], config['influxdb']['port'], config['influxdb']['user'], config['influxdb']['password'], config['influxdb']['database'], ssl = config['influxdb']['ssl'], verify_ssl = config['influxdb']['verify_ssl'])
+    def update(self):
+        print("Updating screen")
+        self.sensors.update()
+        self.screen.update()
 
-sensors = SensorCollection("sensors.json", client)
+    def loop(self):
+        self.update()
+        sleep(30)
 
-screen = Screen(sensors.sensors)
+    def load_config(self, filename):
+        with open("config.json", encoding="utf-8") as configFile:
+            return json.load(configFile)
 
-sensors.update()
+    def register_button(self, key, handler):
+        button = Button(key)
+        button.when_pressed = handler
+        self.buttons.update({key: button})
 
-screen.update()
 
-def update():
-    global sensors, screen, t
-    print("Update")
-    sensors.update()
-    screen.update()
-    #t = Timer(30, update)
-    #t.start()
-
-t = Timer(30, update)
-t.start()
-
-print("Waiting for button")
-button = Button(5)
-button.when_pressed = update
-
-pause()
+if __name__ == "__main__":
+    print("Launching thermometer...")
+    app = App()
+    while True:
+        app.loop()
 
 print("Exit")
