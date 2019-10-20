@@ -13,8 +13,8 @@ class App(object):
     def __init__(self):
         config = self.load_config("config.json")
         self.client = InfluxDBClient(config['influxdb']['host'], config['influxdb']['port'], config['influxdb']['user'], config['influxdb']['password'], config['influxdb']['database'], ssl = config['influxdb']['ssl'], verify_ssl = config['influxdb']['verify_ssl'])
-        self.sensors = SensorCollection("sensors.json", client)
-        self.screen = Screen(sensors.sensors)
+        self.sensors = SensorCollection("sensors.json", self.client)
+        self.screen = Screen(self.sensors.sensors)
         self.buttons = {}
         self.register_button(5, self.update)
 

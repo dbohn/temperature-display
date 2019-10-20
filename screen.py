@@ -1,31 +1,26 @@
-import epd2in7
 from PIL import Image,ImageDraw,ImageFont
 from datetime import datetime
+import threading
+from eink import EinkDisplay
 
 class Screen(object):
     def __init__(self, sensors):
-        self.epd = None
-        self.width = epd2in7.EPD_WIDTH
-        self.height = epd2in7.EPD_HEIGHT
+        self.epd = EinkDisplay(port=0, device=0)
+        self.width = self.epd.width
+        self.height = self.epd.height
         self.numButtons = 4
         self.statusBarHeight = 24
         self.statusBarPadding = 3
         self.image = None
         self.draw = None
         self.sensors = sensors
+        self.renderLock = threading.RLock()
 
         self.fonts = {
             "measurement": ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 32),
             "description": ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 10),
             "toolbar": ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', self.statusBarHeight - 2 * self.statusBarPadding)
         }
-
-        self.initDisplay()
-
-    def initDisplay(self):
-        self.epd = epd2in7.EPD()
-        self.epd.init()
-        # self.epd.Clear(0xFF)
 
     def button(self, text, position):
         cellWidth = self.width / self.numButtons
@@ -38,10 +33,18 @@ class Screen(object):
         if position > 0:
             self.draw.line((buttonX, 240, buttonX, 264), fill = 0)
 
-    def measurement(self, temperature, name, position):
+    def measurement(self, temperature, trend, name, position):
         initialY = position * 50
         self.draw.text((10, initialY), temperature, font = self.fonts['measurement'], fill = 0)
-        self.draw.text((10, initialY + 36), name, font = self.fonts['description'], fill = 0)
+        trendSymbol = '\u2192' # ->
+        if trend is None:
+            trendSymbol = '-'
+        elif trend >= 1:
+            trendSymbol = '\u2197' # ↗
+        elif trend <= -1:
+            trendSymbol = '\u2198' # ↘
+        self.draw.text((10, initialY + 36), trendSymbol, font = self.fonts['description'], fill = 0)
+        self.draw.text((10 + 15, initialY + 36), name, font = self.fonts['description'], fill = 0)
         self.draw.line((0,initialY + 50 ,176, initialY + 50), fill = 0)
 
     def renderToolbar(self):
@@ -64,7 +67,7 @@ class Screen(object):
         self.draw = ImageDraw.Draw(self.image)
 
         for i, measurement in enumerate(self.sensors, start = 0):
-            self.measurement(measurement.measurementValue(), measurement.name, i)
+            self.measurement(measurement.measurementValue(), measurement.trendValue(), measurement.name, i)
 
         self.renderToolbar()
 
@@ -93,8 +96,12 @@ class Screen(object):
         return buf
 
     def update(self):
-        img = self.render()
-        self.epd.display(self.encodeBuffer(self.render()))
+        self.renderLock.acquire()
+        try:
+            img = self.render()
+            self.epd.display(self.encodeBuffer(self.render()))
+        finally:
+            self.renderLock.release()
         #self.epd.sleep()
 
     def shutdown(self):
